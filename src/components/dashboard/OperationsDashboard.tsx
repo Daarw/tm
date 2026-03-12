@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+  Activity,
   AlertTriangle,
   ArrowDownRight,
   ArrowUpRight,
@@ -9,6 +10,7 @@ import {
   Router,
   ScanLine,
   Trees,
+  Users,
   Waves,
   WifiOff,
 } from "lucide-react";
@@ -29,14 +31,12 @@ import {
   YAxis,
 } from "recharts";
 import {
-  accessActivity,
   alertsData,
   anomalyPanel,
   crowdByZone,
   dailyTrend,
   infrastructureStatus,
   kpis,
-  modalitySplit,
   modeOptions,
   pedestrianTrend,
   sensorCategories,
@@ -56,12 +56,82 @@ const badgeStyles: Record<string, string> = {
   offline: "bg-rose-100 text-rose-700 border-rose-200",
 };
 
+type SummaryResponse = {
+  rows_loaded: string | number;
+  total_pedestrians: string | number;
+  total_bicycles: string | number;
+  total_vehicles: string | number;
+  last_update: string;
+};
+
+type TrafficRow = {
+  segment_id: number;
+  recorded_at: string;
+  pedestrian_count: number | string;
+  bicycle_count: number | string;
+  vehicle_count: number | string;
+  uptime: number | string;
+  source_name: string;
+};
+
+type BusiestHourResponse = {
+  segment_id: number;
+  recorded_at: string;
+  pedestrian_count: number | string;
+  bicycle_count: number | string;
+  vehicle_count: number | string;
+  total_flow: number | string;
+} | null;
+
+const SEGMENT_ID = 9000006266;
+const API_BASE_URL = "http://localhost:3000";
+
 export function OperationsDashboard() {
   const [zone, setZone] = useState("All zones");
   const [category, setCategory] = useState("All categories");
   const [severity, setSeverity] = useState("All severities");
   const [range, setRange] = useState("Last 2 hrs");
   const [mode, setMode] = useState("Live");
+
+  const [summaryData, setSummaryData] = useState<SummaryResponse | null>(null);
+  const [trafficSeries, setTrafficSeries] = useState<TrafficRow[]>([]);
+  const [busiestHour, setBusiestHour] = useState<BusiestHourResponse>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadTelraamData() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const [summaryRes, trafficRes, busiestRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/dashboard/summary?segment_id=${SEGMENT_ID}`),
+          fetch(`${API_BASE_URL}/api/traffic/latest?segment_id=${SEGMENT_ID}`),
+          fetch(`${API_BASE_URL}/api/dashboard/busiest-hour?segment_id=${SEGMENT_ID}`),
+        ]);
+
+        if (!summaryRes.ok || !trafficRes.ok || !busiestRes.ok) {
+          throw new Error("Failed to fetch Telraam dashboard data");
+        }
+
+        const summaryJson: SummaryResponse = await summaryRes.json();
+        const trafficJson: TrafficRow[] = await trafficRes.json();
+        const busiestJson: BusiestHourResponse = await busiestRes.json();
+
+        setSummaryData(summaryJson);
+        setTrafficSeries(trafficJson);
+        setBusiestHour(busiestJson);
+      } catch (err) {
+        console.error(err);
+        setError("Unable to load Telraam data from the local backend.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadTelraamData();
+  }, []);
 
   const filteredAlerts = useMemo(() => {
     return alertsData.filter((item) => {
@@ -78,6 +148,137 @@ export function OperationsDashboard() {
       return zoneMatch && categoryMatch;
     });
   }, [zone, category]);
+
+  const liveKpis = useMemo(() => {
+    if (!summaryData) return kpis;
+
+    return [
+      {
+        label: "Pedestrian total",
+        value: Number(summaryData.total_pedestrians || 0).toLocaleString(),
+        delta: "",
+        trend: "up" as const,
+        helper: "from loaded Telraam records",
+        icon: Users,
+      },
+      {
+        label: "Bicycle total",
+        value: Number(summaryData.total_bicycles || 0).toLocaleString(),
+        delta: "",
+        trend: "up" as const,
+        helper: "from loaded Telraam records",
+        icon: Router,
+      },
+      {
+        label: "Vehicle total",
+        value: Number(summaryData.total_vehicles || 0).toLocaleString(),
+        delta: "",
+        trend: "up" as const,
+        helper: "from loaded Telraam records",
+        icon: Camera,
+      },
+      {
+        label: "Rows loaded",
+        value: Number(summaryData.rows_loaded || 0).toLocaleString(),
+        delta: "",
+        trend: "up" as const,
+        helper: "database rows for selected segment",
+        icon: Activity,
+      },
+      {
+        label: "Peak interval flow",
+        value: busiestHour ? String(busiestHour.total_flow) : "—",
+        delta: "",
+        trend: "up" as const,
+        helper: busiestHour?.recorded_at
+          ? new Date(busiestHour.recorded_at).toLocaleString()
+          : "latest peak interval",
+        icon: Clock3,
+      },
+    ];
+  }, [summaryData, busiestHour]);
+
+  const livePedestrianTrend = useMemo(() => {
+    if (!trafficSeries.length) return pedestrianTrend;
+
+    return [...trafficSeries].reverse().map((item) => {
+      const pedestrians = Number(item.pedestrian_count || 0);
+      const bicycles = Number(item.bicycle_count || 0);
+      const vehicles = Number(item.vehicle_count || 0);
+
+      return {
+        time: new Date(item.recorded_at).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        flow: pedestrians,
+        crowd: pedestrians + bicycles + vehicles,
+        sound: Number(item.uptime || 0),
+      };
+    });
+  }, [trafficSeries]);
+
+  const liveAccessActivity = useMemo(() => {
+    if (!trafficSeries.length) {
+      return [
+        { time: "09:20", access: 18, vehicles: 4 },
+        { time: "09:40", access: 22, vehicles: 7 },
+        { time: "10:00", access: 27, vehicles: 6 },
+        { time: "10:20", access: 35, vehicles: 9 },
+      ];
+    }
+
+    return [...trafficSeries].reverse().map((item) => ({
+      time: new Date(item.recorded_at).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      access: Number(item.pedestrian_count || 0) + Number(item.bicycle_count || 0),
+      vehicles: Number(item.vehicle_count || 0),
+    }));
+  }, [trafficSeries]);
+
+  const liveModalitySplit = useMemo(() => {
+    if (!summaryData) {
+      return [
+        { name: "Pedestrian", value: 61 },
+        { name: "Bike", value: 23 },
+        { name: "Service Vehicle", value: 9 },
+        { name: "Other", value: 7 },
+      ];
+    }
+
+    const pedestrians = Number(summaryData.total_pedestrians || 0);
+    const bicycles = Number(summaryData.total_bicycles || 0);
+    const vehicles = Number(summaryData.total_vehicles || 0);
+    const total = pedestrians + bicycles + vehicles;
+
+    if (total === 0) {
+      return [
+        { name: "Pedestrian", value: 0 },
+        { name: "Bike", value: 0 },
+        { name: "Vehicle", value: 0 },
+      ];
+    }
+
+    return [
+      { name: "Pedestrian", value: Math.round((pedestrians / total) * 100) },
+      { name: "Bike", value: Math.round((bicycles / total) * 100) },
+      { name: "Vehicle", value: Math.round((vehicles / total) * 100) },
+    ];
+  }, [summaryData]);
+
+  const scannerStats = useMemo(() => {
+    if (!trafficSeries.length) {
+      return { access: 102, vehicles: 26 };
+    }
+
+    const latest = trafficSeries[0];
+    return {
+      access: Number(latest?.pedestrian_count || 0) + Number(latest?.bicycle_count || 0),
+      vehicles: Number(latest?.vehicle_count || 0),
+    };
+  }, [trafficSeries]);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.16),_transparent_30%),linear-gradient(180deg,#f3fbf6_0%,#e4f3e8_52%,#edf6ee_100%)] p-6 text-slate-900 md:p-8">
@@ -128,8 +329,14 @@ export function OperationsDashboard() {
           </div>
         </div>
 
+        {error ? (
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">
+            {error}
+          </div>
+        ) : null}
+
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          {kpis.map((kpi) => {
+          {liveKpis.map((kpi) => {
             const Icon = kpi.icon;
             const TrendIcon = kpi.trend === "up" ? ArrowUpRight : ArrowDownRight;
 
@@ -140,15 +347,19 @@ export function OperationsDashboard() {
                     <div>
                       <p className="text-sm text-slate-500">{kpi.label}</p>
                       <div className="mt-2 flex items-end gap-2">
-                        <p className="text-2xl font-semibold tracking-tight text-slate-950">{kpi.value}</p>
-                        <span
-                          className={`mb-1 inline-flex items-center gap-1 text-xs font-medium ${
-                            kpi.trend === "up" ? "text-emerald-700" : "text-rose-600"
-                          }`}
-                        >
-                          <TrendIcon className="h-3.5 w-3.5" />
-                          {kpi.delta}
-                        </span>
+                        <p className="text-2xl font-semibold tracking-tight text-slate-950">
+                          {loading ? "…" : kpi.value}
+                        </p>
+                        {kpi.delta ? (
+                          <span
+                            className={`mb-1 inline-flex items-center gap-1 text-xs font-medium ${
+                              kpi.trend === "up" ? "text-emerald-700" : "text-rose-600"
+                            }`}
+                          >
+                            <TrendIcon className="h-3.5 w-3.5" />
+                            {kpi.delta}
+                          </span>
+                        ) : null}
                       </div>
                       <p className="mt-1 text-xs text-slate-500">{kpi.helper}</p>
                     </div>
@@ -168,13 +379,13 @@ export function OperationsDashboard() {
             <CardHeader>
               <SectionTitle
                 title="Live activity overview"
-                subtitle="Footfall, crowd load, and sound conditions in the current observation window"
+                subtitle="Footfall and combined traffic conditions in the current observation window"
               />
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="h-[280px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={pedestrianTrend}>
+                  <AreaChart data={livePedestrianTrend}>
                     <defs>
                       <linearGradient id="flowFill" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#047857" stopOpacity={0.22} />
@@ -195,11 +406,11 @@ export function OperationsDashboard() {
                     />
                     <Line
                       type="monotone"
-                      dataKey="sound"
+                      dataKey="crowd"
                       stroke="#65a30d"
                       strokeWidth={2}
                       dot={false}
-                      name="Avg. sound dB"
+                      name="Total flow"
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -302,13 +513,13 @@ export function OperationsDashboard() {
               <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
                 <div className="h-[260px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={accessActivity}>
+                    <BarChart data={liveAccessActivity}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#dbe7df" />
                       <XAxis dataKey="time" tick={{ fill: "#64748b", fontSize: 12 }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fill: "#64748b", fontSize: 12 }} axisLine={false} tickLine={false} />
                       <Tooltip />
-                      <Bar dataKey="access" radius={[8, 8, 0, 0]} fill="#047857" name="RFID events" />
-                      <Bar dataKey="vehicles" radius={[8, 8, 0, 0]} fill="#84cc16" name="Vehicle plates" />
+                      <Bar dataKey="access" radius={[8, 8, 0, 0]} fill="#047857" name="Pedestrian + bike" />
+                      <Bar dataKey="vehicles" radius={[8, 8, 0, 0]} fill="#84cc16" name="Vehicles" />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -318,7 +529,7 @@ export function OperationsDashboard() {
                     <div className="mb-4 flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-slate-800">Modality split</p>
-                        <p className="text-xs text-slate-500">Latest rolling interval</p>
+                        <p className="text-xs text-slate-500">Computed from current Telraam totals</p>
                       </div>
                       <Router className="h-4 w-4 text-slate-500" />
                     </div>
@@ -326,8 +537,8 @@ export function OperationsDashboard() {
                     <div className="h-[180px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
-                          <Pie data={modalitySplit} innerRadius={42} outerRadius={70} dataKey="value" paddingAngle={3}>
-                            {modalitySplit.map((entry, index) => (
+                          <Pie data={liveModalitySplit} innerRadius={42} outerRadius={70} dataKey="value" paddingAngle={3}>
+                            {liveModalitySplit.map((entry, index) => (
                               <Cell key={entry.name} fill={["#047857", "#10b981", "#84cc16", "#d9f99d"][index % 4]} />
                             ))}
                           </Pie>
@@ -337,7 +548,7 @@ export function OperationsDashboard() {
                     </div>
 
                     <div className="space-y-2">
-                      {modalitySplit.map((item) => (
+                      {liveModalitySplit.map((item) => (
                         <div key={item.name} className="flex items-center justify-between text-sm">
                           <span className="text-slate-600">{item.name}</span>
                           <span className="font-medium text-slate-900">{item.value}%</span>
@@ -354,17 +565,17 @@ export function OperationsDashboard() {
 
                     <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                       <div className="rounded-2xl bg-white p-3">
-                        <p className="text-slate-500">RFID scans</p>
-                        <p className="mt-1 text-xl font-semibold text-slate-950">102</p>
+                        <p className="text-slate-500">Pedestrian + bike</p>
+                        <p className="mt-1 text-xl font-semibold text-slate-950">{loading ? "…" : scannerStats.access}</p>
                       </div>
                       <div className="rounded-2xl bg-white p-3">
-                        <p className="text-slate-500">Plate reads</p>
-                        <p className="mt-1 text-xl font-semibold text-slate-950">26</p>
+                        <p className="text-slate-500">Vehicles</p>
+                        <p className="mt-1 text-xl font-semibold text-slate-950">{loading ? "…" : scannerStats.vehicles}</p>
                       </div>
                     </div>
 
                     <p className="mt-3 text-xs text-slate-500">
-                      No suspicious access cluster confirmed. Continue passive monitoring.
+                      Based on the latest interval recorded for the selected Telraam segment.
                     </p>
                   </div>
                 </div>
