@@ -46,6 +46,7 @@ import {
   zones,
 } from "../../data/mockDashboardData";
 import { Card, CardContent, CardHeader, Pill, SectionTitle, SelectLike } from "./ui";
+import WeatherWidget from "./WeatherWidget";
 
 const badgeStyles: Record<string, string> = {
   info: "bg-emerald-100 text-emerald-800 border-emerald-200",
@@ -390,6 +391,8 @@ export function OperationsDashboard() {
             </p>
           </div>
         </div>
+
+        <WeatherWidget />
 
         <div className="rounded-[30px] border border-emerald-200/90 bg-gradient-to-r from-emerald-50 via-white to-lime-50 px-6 py-6 text-slate-900 shadow-[0_18px_45px_rgba(21,128,61,0.10)] md:px-8">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">

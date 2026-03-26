@@ -231,6 +231,31 @@ app.get("/api/knmi/status", async (req, res) => {
   }
 });
 
+// ---------- Weather API routes ----------
+app.get('/api/weather', async (req, res) => {
+    try {
+        const apiKey = process.env.WEATHER_API_KEY;
+
+        const city = 'Amsterdam'; 
+        // fetch 3-day forecast for Amsterdam; can be made dynamic later if needed
+        const days = 3; 
+
+        const apiUrl = `http://api.weatherapi.com/v1/forecast.json?key=${apiKey}&q=${city}&days=${days}&aqi=no&alerts=no`;
+
+        console.log("Fetching weather data from API:", apiUrl);
+        
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+            throw new Error(`Weather API request failed: ${response.status}`);
+        }
+        const data = await response.json();
+
+        res.json(data);
+    } catch (error) {
+        console.error("Weather API server error:", error);
+        res.status(500).json({ error: 'Failed to fetch weather data' });
+    }
+});
 
 // fallback route
 app.get("/", (req, res) => {
