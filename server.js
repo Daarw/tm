@@ -17,12 +17,13 @@ app.use(express.json());
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Neon PostgreSQL connection
+// UpCloud PostgreSQL connection
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  database: process.env.PGDATABASE,
+  user: process.env.PGUSER,
+  password: process.env.PGPASSWORD,
+  host: process.env.PGHOST || "localhost",
+  port: Number(process.env.PGPORT || 5432),
 });
 
 // Serve static dashboard files
@@ -167,12 +168,9 @@ app.get("/api/dashboard/busiest-hour", async (req, res) => {
 });
 
 // ---------- KNMI routes ----------
-
-// live-ish KNMI weather warnings
 app.get("/api/knmi/warnings", async (req, res) => {
   try {
     const latest = await getLatestKnmiFile("waarschuwingen_nederland_48h", "1.0");
-
     const warningJson = await fetchJson(latest.temporaryDownloadUrl);
 
     res.json({
@@ -189,7 +187,6 @@ app.get("/api/knmi/warnings", async (req, res) => {
   }
 });
 
-// give frontend a ready-made WMS URL for radar overlay
 app.get("/api/knmi/radar/wms-url", async (req, res) => {
   try {
     const wmsBase =
@@ -210,7 +207,6 @@ app.get("/api/knmi/radar/wms-url", async (req, res) => {
   }
 });
 
-// simple endpoint to verify KNMI connectivity in browser
 app.get("/api/knmi/status", async (req, res) => {
   try {
     const latest = await getLatestKnmiFile("waarschuwingen_nederland_48h", "1.0");
@@ -232,29 +228,27 @@ app.get("/api/knmi/status", async (req, res) => {
 });
 
 // ---------- Weather API routes ----------
-app.get('/api/weather', async (req, res) => {
-    try {
-        const apiKey = process.env.WEATHER_API_KEY;
+app.get("/api/weather", async (req, res) => {
+  try {
+    const apiKey = process.env.WEATHER_API_KEY;
+    const city = "Amsterdam";
+    const days = 3;
 
-        const city = 'Amsterdam'; 
-        // fetch 3-day forecast for Amsterdam; can be made dynamic later if needed
-        const days = 3; 
+    const apiUrl = `http://api.weatherapi.com/v1/forecast.json?key=${apiKey}&q=${city}&days=${days}&aqi=no&alerts=no`;
 
-        const apiUrl = `http://api.weatherapi.com/v1/forecast.json?key=${apiKey}&q=${city}&days=${days}&aqi=no&alerts=no`;
+    console.log("Fetching weather data from API:", apiUrl);
 
-        console.log("Fetching weather data from API:", apiUrl);
-        
-        const response = await fetch(apiUrl);
-        if (!response.ok) {
-            throw new Error(`Weather API request failed: ${response.status}`);
-        }
-        const data = await response.json();
-
-        res.json(data);
-    } catch (error) {
-        console.error("Weather API server error:", error);
-        res.status(500).json({ error: 'Failed to fetch weather data' });
+    const response = await fetch(apiUrl);
+    if (!response.ok) {
+      throw new Error(`Weather API request failed: ${response.status}`);
     }
+
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error("Weather API server error:", error);
+    res.status(500).json({ error: "Failed to fetch weather data" });
+  }
 });
 
 // fallback route
