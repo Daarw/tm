@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Activity,
   AlertTriangle,
   ArrowDownRight,
   ArrowUpRight,
-  Camera,
   Clock3,
   Droplets,
   Router,
@@ -113,7 +111,7 @@ const SEGMENT_ID = 9000006266;
 const API_BASE_URL = "";
 
 export function OperationsDashboard() {
-  const [zone, setZone] = useState("All zones");
+  const [zone, setZone] = useState("All locations");
   const [category, setCategory] = useState("All categories");
   const [severity, setSeverity] = useState("All severities");
   const [range, setRange] = useState("Last 2 hrs");
@@ -228,7 +226,7 @@ export function OperationsDashboard() {
 
   return combinedAlerts.filter((item) => {
     const zoneMatch =
-      zone === "All zones" ||
+      zone === "All locations" ||
       item.zone === zone ||
       item.zone === "Netherlands";
     const severityMatch =
@@ -240,7 +238,7 @@ export function OperationsDashboard() {
 
   const filteredSensorHealth = useMemo(() => {
     return sensorHealth.filter((item) => {
-      const zoneMatch = zone === "All zones" || item.zone === zone;
+      const zoneMatch = zone === "All locations" || item.zone === zone;
       const categoryMatch = category === "All categories" || item.category === category;
       return zoneMatch && categoryMatch;
     });
@@ -251,49 +249,31 @@ export function OperationsDashboard() {
 
     return [
       {
-        label: "Pedestrian total",
+        label: "People on foot",
         value: Number(summaryData.total_pedestrians || 0).toLocaleString(),
         delta: "",
         trend: "up" as const,
-        helper: "from loaded Telraam records",
+        helper: "counted in the current view",
         icon: Users,
       },
       {
-        label: "Bicycle total",
+        label: "Cyclists",
         value: Number(summaryData.total_bicycles || 0).toLocaleString(),
         delta: "",
         trend: "up" as const,
-        helper: "from loaded Telraam records",
+        helper: "counted in the current view",
         icon: Router,
       },
       {
-        label: "Vehicle total",
+        label: "Vehicles",
         value: Number(summaryData.total_vehicles || 0).toLocaleString(),
         delta: "",
         trend: "up" as const,
-        helper: "from loaded Telraam records",
-        icon: Camera,
-      },
-      {
-        label: "Rows loaded",
-        value: Number(summaryData.rows_loaded || 0).toLocaleString(),
-        delta: "",
-        trend: "up" as const,
-        helper: "database rows for selected segment",
-        icon: Activity,
-      },
-      {
-        label: "Peak interval flow",
-        value: busiestHour ? String(busiestHour.total_flow) : "—",
-        delta: "",
-        trend: "up" as const,
-        helper: busiestHour?.recorded_at
-          ? new Date(busiestHour.recorded_at).toLocaleString()
-          : "latest peak interval",
+        helper: "counted in the current view",
         icon: Clock3,
       },
     ];
-  }, [summaryData, busiestHour]);
+  }, [summaryData]);
 
   const livePedestrianTrend = useMemo(() => {
     if (!trafficSeries.length) return pedestrianTrend;
@@ -399,10 +379,10 @@ export function OperationsDashboard() {
             <div className="max-w-2xl">
               <p className="text-xs font-medium uppercase tracking-[0.22em] text-emerald-700">Operator controls</p>
               <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">
-                Look up a specific area, signal, or incident pattern
+                Look up a specific location, signal, or incident pattern
               </h2>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                Use filters to narrow the dashboard to a specific zone, sensor category, alert severity, or time
+                Use filters to narrow the dashboard to a specific location, sensor category, alert severity, or time
                 window before reviewing the live operational picture below.
               </p>
             </div>
@@ -417,10 +397,10 @@ export function OperationsDashboard() {
             <SelectLike dark label="Time range" value={range} onChange={setRange} options={timeRangeOptions} />
             <SelectLike
               dark
-              label="Zone"
+              label="Location"
               value={zone}
               onChange={setZone}
-              options={["All zones", ...zones.map((z) => z.name)]}
+              options={["All locations", ...zones.map((z) => z.name)]}
             />
             <SelectLike dark label="Sensor category" value={category} onChange={setCategory} options={sensorCategories} />
             <SelectLike dark label="Alert severity" value={severity} onChange={setSeverity} options={severityOptions} />
@@ -434,7 +414,7 @@ export function OperationsDashboard() {
           </div>
         ) : null}
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {liveKpis.map((kpi) => {
             const Icon = kpi.icon;
             const TrendIcon = kpi.trend === "up" ? ArrowUpRight : ArrowDownRight;
@@ -446,9 +426,7 @@ export function OperationsDashboard() {
                     <div>
                       <p className="text-sm text-slate-500">{kpi.label}</p>
                       <div className="mt-2 flex items-end gap-2">
-                        <p className="text-2xl font-semibold tracking-tight text-slate-950">
-                          {loading ? "…" : kpi.value}
-                        </p>
+                        <p className="text-2xl font-semibold tracking-tight text-slate-950">{kpi.value}</p>
                         {kpi.delta ? (
                           <span
                             className={`mb-1 inline-flex items-center gap-1 text-xs font-medium ${
@@ -478,7 +456,7 @@ export function OperationsDashboard() {
             <CardHeader>
               <SectionTitle
                 title="Live activity overview"
-                subtitle="Footfall and combined traffic conditions in the current observation window"
+                subtitle="People movement and overall activity in the current view"
               />
             </CardHeader>
             <CardContent className="space-y-5">
@@ -536,7 +514,7 @@ export function OperationsDashboard() {
                     </div>
 
                     <p className="mt-3 text-2xl font-semibold text-slate-950">{item.visitors}</p>
-                    <p className="text-xs text-slate-500">estimated live visitors</p>
+                    <p className="text-xs text-slate-500">estimated visitors right now</p>
 
                     <div className="mt-3">
                       <div className="mb-1 flex items-center justify-between text-xs text-slate-500">
@@ -605,7 +583,7 @@ export function OperationsDashboard() {
             <CardHeader>
               <SectionTitle
                 title="Mobility, access, and modality"
-                subtitle="Entry activity and transport composition for the selected view"
+                subtitle="Arrivals and transport mix for the selected view"
               />
             </CardHeader>
             <CardContent>
@@ -628,7 +606,7 @@ export function OperationsDashboard() {
                     <div className="mb-4 flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-slate-800">Modality split</p>
-                        <p className="text-xs text-slate-500">Computed from current Telraam totals</p>
+                        <p className="text-xs text-slate-500">Based on the current counts</p>
                       </div>
                       <Router className="h-4 w-4 text-slate-500" />
                     </div>
@@ -659,22 +637,22 @@ export function OperationsDashboard() {
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <div className="flex items-center gap-2">
                       <ScanLine className="h-4 w-4 text-slate-600" />
-                      <p className="text-sm font-medium text-slate-800">Scanner activity</p>
+                      <p className="text-sm font-medium text-slate-800">Latest count snapshot</p>
                     </div>
 
                     <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                       <div className="rounded-2xl bg-white p-3">
                         <p className="text-slate-500">Pedestrian + bike</p>
-                        <p className="mt-1 text-xl font-semibold text-slate-950">{loading ? "…" : scannerStats.access}</p>
+                        <p className="mt-1 text-xl font-semibold text-slate-950">{scannerStats.access}</p>
                       </div>
                       <div className="rounded-2xl bg-white p-3">
                         <p className="text-slate-500">Vehicles</p>
-                        <p className="mt-1 text-xl font-semibold text-slate-950">{loading ? "…" : scannerStats.vehicles}</p>
+                        <p className="mt-1 text-xl font-semibold text-slate-950">{scannerStats.vehicles}</p>
                       </div>
                     </div>
 
                     <p className="mt-3 text-xs text-slate-500">
-                      Based on the latest interval recorded for the selected Telraam segment.
+                      Based on the most recent update for the selected count point.
                     </p>
                   </div>
                 </div>
@@ -723,7 +701,7 @@ export function OperationsDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-slate-800">Picnic activity</p>
-                      <p className="text-xs text-slate-500">Harbor Edge occupancy cue</p>
+                      <p className="text-xs text-slate-500">Public space activity cue</p>
                     </div>
                     <Trees className="h-4 w-4 text-slate-500" />
                   </div>
@@ -767,7 +745,7 @@ export function OperationsDashboard() {
             <CardHeader>
               <SectionTitle
                 title="Environmental + crowd correlation"
-                subtitle="Useful for anticipating comfort and escalation risk"
+                subtitle="A simple view of how activity and sound levels move together"
               />
             </CardHeader>
             <CardContent>
@@ -867,11 +845,11 @@ export function OperationsDashboard() {
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-          <Card>
+          <Card className="order-2">
             <CardHeader>
               <SectionTitle
-                title="Sensor health and system status"
-                subtitle="Operational readiness across the sensor network"
+                title="System check"
+                subtitle="Action framing for the next 30–60 minutes"
               />
             </CardHeader>
             <CardContent>
@@ -890,7 +868,7 @@ export function OperationsDashboard() {
 
                     <div className="flex items-center gap-2 text-slate-500">
                       <Clock3 className="h-4 w-4" />
-                      <span>heartbeat &lt; 2 min</span>
+                      <span>updated in the last few minutes</span>
                     </div>
 
                     <div className="justify-self-end">
@@ -907,7 +885,7 @@ export function OperationsDashboard() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="order-1">
             <CardHeader>
               <SectionTitle title="Operator notes" subtitle="Action framing for the next 30–60 minutes" />
             </CardHeader>
@@ -915,9 +893,9 @@ export function OperationsDashboard() {
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-sm font-medium text-slate-800">Recommended attention areas</p>
                 <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
-                  <li>Central Plaza: verify whether sound spike is event-related or emerging congestion.</li>
-                  <li>Swim Dock: prep soft crowd management if occupancy passes 80.</li>
-                  <li>Makers Court: restore CCTV shutter feed to recover full monitoring coverage.</li>
+                  <li>CODAM (039): check whether the higher sound level is linked to an event or a temporary crowd build-up.</li>
+                  <li>TAPP (027 E): keep an eye on lunch-time activity if visitor numbers continue to rise.</li>
+                  <li>AHK MakerSpace (027 N): restore the camera feed so the team has full visual coverage again.</li>
                 </ul>
               </div>
             </CardContent>

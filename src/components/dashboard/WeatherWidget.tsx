@@ -21,8 +21,8 @@ const WeatherWidget = () => {
     return () => clearInterval(intervalId); // cleanup on unmount
   }, []);
 
-  if (error) return <div className="text-red-500 p-4">Loading weather failed: {error}</div>;
-  if (!weather) return <div className="text-emerald-700 p-4 animate-pulse">Loading operational weather data...</div>;
+  if (error) return null;
+  if (!weather) return null;
 
   // fetch weather in 12 hours ---
   
