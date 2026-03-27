@@ -18,13 +18,18 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // UpCloud PostgreSQL connection
-const pool = new Pool({
-  database: process.env.PGDATABASE,
-  user: process.env.PGUSER,
-  password: process.env.PGPASSWORD,
-  host: process.env.PGHOST || "localhost",
-  port: Number(process.env.PGPORT || 5432),
-});
+const pool = process.env.DATABASE_URL
+  ? new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
+    })
+  : new Pool({
+      database: process.env.PGDATABASE,
+      user: process.env.PGUSER,
+      password: process.env.PGPASSWORD,
+      host: process.env.PGHOST || "localhost",
+      port: Number(process.env.PGPORT || 5432),
+    });
 
 // Serve static dashboard files
 app.use(express.static(path.join(__dirname, "public")));
