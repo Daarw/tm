@@ -125,8 +125,11 @@ export function OperationsDashboard() {
 
   const [knmiWarnings, setKnmiWarnings] = useState<KnmiWarningsResponse | null>(null);
   const [knmiLoading, setKnmiLoading] = useState(false);
+  const [holidays, setHolidays] = useState<any[]>([]);
+  const [holidaysLoading, setHolidaysLoading] = useState(false);
+    
 
-  useEffect(() => {
+  useEffect(() => {    
     async function loadTelraamData() {
       try {
         setLoading(true);
@@ -159,6 +162,34 @@ export function OperationsDashboard() {
 
     loadTelraamData();
   }, []);
+
+
+  useEffect(() => {
+  async function loadHolidays() {
+    try {
+      setHolidaysLoading(true);
+
+      const res = await fetch("/api/holidays");
+
+      if (!res.ok) {
+        throw new Error("Failed to fetch holidays");
+      }
+
+      const json = await res.json();
+
+      console.log("HOLIDAYS:", json);
+
+      setHolidays(json.data); // IMPORTANT
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setHolidaysLoading(false);
+    }
+  }
+
+  loadHolidays();
+}, []);
+
 
   useEffect(() => {
   let intervalId: number | undefined;
@@ -374,6 +405,8 @@ export function OperationsDashboard() {
 
         <WeatherWidget />
 
+ 
+
         <div className="rounded-[30px] border border-emerald-200/90 bg-gradient-to-r from-emerald-50 via-white to-lime-50 px-6 py-6 text-slate-900 shadow-[0_18px_45px_rgba(21,128,61,0.10)] md:px-8">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl">
@@ -578,7 +611,36 @@ export function OperationsDashboard() {
           </Card>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+    <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+  <div className="flex flex-col gap-6">
+
+
+ {/* HOLIDAYS */}
+    <Card>
+      <CardHeader>
+        <SectionTitle
+          title="Public holidays (NL)"
+          subtitle="Days that may impact crowd levels"
+        />
+      </CardHeader>
+      <CardContent>
+        {holidays.slice(0, 5).map((holiday) => (
+          <div
+            key={holiday.date}
+            className="rounded-xl border border-slate-200 bg-slate-50 p-3 mb-2"
+          >
+            <p className="text-sm font-medium text-slate-800">
+              {holiday.localName}
+            </p>
+            <p className="text-xs text-slate-500">
+              {new Date(holiday.date).toLocaleDateString()}
+            </p>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+
+      
           <Card>
             <CardHeader>
               <SectionTitle
@@ -739,6 +801,7 @@ export function OperationsDashboard() {
             </Card>
           </div>
         </div>
+</div>  
 
         <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
           <Card>
