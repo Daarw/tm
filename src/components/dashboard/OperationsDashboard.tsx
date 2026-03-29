@@ -754,86 +754,118 @@ export function OperationsDashboard() {
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-          <Card>
-            <CardHeader>
-              <SectionTitle
-                title="Mobility, access, and modality"
-                subtitle="Entry activity and transport composition for the selected view"
-              />
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-                <div className="h-[260px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={liveAccessActivity}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={MAIN_COLORS.aColorBlack} />
-                      <XAxis dataKey="time" tick={{ fill: MAIN_COLORS.aColor1, fontSize: 12 }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fill: MAIN_COLORS.aColor1, fontSize: 12 }} axisLine={false} tickLine={false} />
-                      <Tooltip />
-                      <Bar dataKey="access" radius={[8, 8, 0, 0]} fill={MAIN_COLORS.aColor1} name="Pedestrian + bike" />
-                      <Bar dataKey="vehicles" radius={[8, 8, 0, 0]} fill={MAIN_COLORS.aColor2} name="Vehicles" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+          <div className="flex flex-col gap-6">
+            <Card>
+              <CardHeader>
+                <SectionTitle
+                  title="Mobility, access, and modality"
+                  subtitle="Entry activity and transport composition for the selected view"
+                />
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+                  <div className="h-[260px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={liveAccessActivity}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={MAIN_COLORS.aColorBlack} />
+                        <XAxis dataKey="time" tick={{ fill: MAIN_COLORS.aColor1, fontSize: 12 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fill: MAIN_COLORS.aColor1, fontSize: 12 }} axisLine={false} tickLine={false} />
+                        <Tooltip />
+                        <Bar dataKey="access" radius={[8, 8, 0, 0]} fill={MAIN_COLORS.aColor1} name="Pedestrian + bike" />
+                        <Bar dataKey="vehicles" radius={[8, 8, 0, 0]} fill={MAIN_COLORS.aColor2} name="Vehicles" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
 
-                <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-1">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="mb-4 flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-slate-800">Modality split</p>
-                        <p className="text-xs text-slate-500">Computed from current Telraam totals</p>
-                      </div>
-                      <Router className="h-4 w-4 text-slate-500" />
-                    </div>
-
-                    <div className="h-[180px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie data={liveModalitySplit} innerRadius={42} outerRadius={70} dataKey="value" paddingAngle={3}>
-                            {liveModalitySplit.map((entry, index) => (
-                              <Cell key={entry.name} fill={[MAIN_COLORS.aColor1, MAIN_COLORS.aColor2, MAIN_COLORS.aColor2, MAIN_COLORS.aColor1][index % 4]} />
-                            ))}
-                          </Pie>
-                          <Tooltip />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-
-                    <div className="space-y-2">
-                      {liveModalitySplit.map((item) => (
-                        <div key={item.name} className="flex items-center justify-between text-sm">
-                          <span className="text-slate-600">{item.name}</span>
-                          <span className="font-medium text-slate-900">{item.value}%</span>
+                  <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-1">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="mb-4 flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-slate-800">Modality split</p>
+                          <p className="text-xs text-slate-500">Computed from current Telraam totals</p>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex items-center gap-2">
-                      <ScanLine className="h-4 w-4 text-slate-600" />
-                      <p className="text-sm font-medium text-slate-800">Scanner activity</p>
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                      <div className="rounded-2xl bg-white p-3">
-                        <p className="text-slate-500">Pedestrian + bike</p>
-                        <p className="mt-1 text-xl font-semibold text-slate-950">{loading ? "…" : scannerStats.access}</p>
+                        <Router className="h-4 w-4 text-slate-500" />
                       </div>
-                      <div className="rounded-2xl bg-white p-3">
-                        <p className="text-slate-500">Vehicles</p>
-                        <p className="mt-1 text-xl font-semibold text-slate-950">{loading ? "…" : scannerStats.vehicles}</p>
+
+                      <div className="h-[180px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie data={liveModalitySplit} innerRadius={42} outerRadius={70} dataKey="value" paddingAngle={3}>
+                              {liveModalitySplit.map((entry, index) => (
+                                <Cell key={entry.name} fill={[MAIN_COLORS.aColor1, MAIN_COLORS.aColor2, MAIN_COLORS.aColor2, MAIN_COLORS.aColor1][index % 4]} />
+                              ))}
+                            </Pie>
+                            <Tooltip />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+
+                      <div className="space-y-2">
+                        {liveModalitySplit.map((item) => (
+                          <div key={item.name} className="flex items-center justify-between text-sm">
+                            <span className="text-slate-600">{item.name}</span>
+                            <span className="font-medium text-slate-900">{item.value}%</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
 
-                    <p className="mt-3 text-xs text-slate-500">
-                      Based on the latest interval recorded for the selected Telraam segment.
-                    </p>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="flex items-center gap-2">
+                        <ScanLine className="h-4 w-4 text-slate-600" />
+                        <p className="text-sm font-medium text-slate-800">Scanner activity</p>
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                        <div className="rounded-2xl bg-white p-3">
+                          <p className="text-slate-500">Pedestrian + bike</p>
+                          <p className="mt-1 text-xl font-semibold text-slate-950">{loading ? "…" : scannerStats.access}</p>
+                        </div>
+                        <div className="rounded-2xl bg-white p-3">
+                          <p className="text-slate-500">Vehicles</p>
+                          <p className="mt-1 text-xl font-semibold text-slate-950">{loading ? "…" : scannerStats.vehicles}</p>
+                        </div>
+                      </div>
+
+                      <p className="mt-3 text-xs text-slate-500">
+                        Based on the latest interval recorded for the selected Telraam segment.
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <SectionTitle
+                  title="Public holidays (NL)"
+                  subtitle="Days that may impact crowd levels"
+                />
+              </CardHeader>
+              <CardContent>
+                {holidaysLoading ? (
+                  <div className="text-sm text-slate-500">Loading holidays...</div>
+                ) : holidays.length === 0 ? (
+                  <div className="text-sm text-slate-500">No holidays found.</div>
+                ) : (
+                  holidays.slice(0, 5).map((holiday) => (
+                    <div
+                      key={holiday.date}
+                      className="rounded-xl border border-slate-200 bg-slate-50 p-3 mb-2"
+                    >
+                      <p className="text-sm font-medium text-slate-800">
+                        {holiday.localName}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {new Date(holiday.date).toLocaleDateString()}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
           <div className="grid gap-6">
             {/* ====== WATER & RECREATION STATUS ====== */}
