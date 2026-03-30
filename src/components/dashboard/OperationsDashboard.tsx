@@ -1,10 +1,13 @@
+// React
 import { useEffect, useMemo, useState } from "react";
-import footColor from "./images/People - Crossing - Color@2x.png";
+// Static assets
 import bikeColor from "./images/People - Bike - Color.png";
 import carColor from "./images/Car - Clolor@2x.png";
-import mt_up from "./images/mt_up.jpg";
+import footColor from "./images/People - Crossing - Color@2x.png";
 import mt_down from "./images/mt_down.jpg";
+import mt_up from "./images/mt_up.jpg";
 
+// Icons and charts
 import {
   AlertTriangle,
   ArrowDownRight,
@@ -34,6 +37,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+
+// Local data and UI
 import {
   alertsData,
   anomalyPanel,
@@ -53,6 +58,7 @@ import { Card, CardContent, CardHeader, Pill, SectionTitle, SelectLike } from ".
 import WeatherWidget from "./WeatherWidget";
 import { MAIN_COLORS, getBadgeStyle } from "./theme";
 
+// Backend response shapes
 type SummaryResponse = {
   rows_loaded: string | number;
   total_pedestrians: string | number;
@@ -108,6 +114,7 @@ type KnmiWarningsResponse = {
 const SEGMENT_ID = 9000006266;
 const API_BASE_URL = "";
 
+// Consistent alert icon coloring from the global theme tokens.
 const alertIconColor = (severity: "info" | "warning" | "critical") => {
   if (severity === "critical") return MAIN_COLORS.aColorBlack;
   if (severity === "warning") return MAIN_COLORS.aColor1;
@@ -115,26 +122,28 @@ const alertIconColor = (severity: "info" | "warning" | "critical") => {
 };
 
 export function OperationsDashboard() {
+  // Filter and view controls
   const [zone, setZone] = useState("All locations");
   const [category, setCategory] = useState("All categories");
   const [severity, setSeverity] = useState("All severities");
   const [range, setRange] = useState("Last 2 hrs");
   const [mode, setMode] = useState("Live");
 
+  // Live dashboard data
   const [summaryData, setSummaryData] = useState<SummaryResponse | null>(null);
   const [trafficSeries, setTrafficSeries] = useState<TrafficRow[]>([]);
   const [busiestHour, setBusiestHour] = useState<BusiestHourResponse>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Supplementary feeds
   const [knmiWarnings, setKnmiWarnings] = useState<KnmiWarningsResponse | null>(null);
   const [knmiLoading, setKnmiLoading] = useState(false);
   const [holidays, setHolidays] = useState<any[]>([]);
   const [holidaysLoading, setHolidaysLoading] = useState(false);
-  
-  //ins
 
-  useEffect(() => {    
+  // Initial load: Telraam summary, trend series, and busiest hour.
+  useEffect(() => {
     async function loadTelraamData() {
       try {
         setLoading(true);
@@ -169,109 +178,114 @@ export function OperationsDashboard() {
   }, []);
 
 
+  // Initial load: Dutch public holidays (used by operations planning card).
   useEffect(() => {
-  async function loadHolidays() {
-    try {
-      setHolidaysLoading(true);
+    async function loadHolidays() {
+      try {
+        setHolidaysLoading(true);
 
-      const res = await fetch("/api/holidays");
+        const res = await fetch("/api/holidays");
 
-      if (!res.ok) {
-        throw new Error("Failed to fetch holidays");
+        if (!res.ok) {
+          throw new Error("Failed to fetch holidays");
+        }
+
+        const json = await res.json();
+
+        console.log("HOLIDAYS:", json);
+
+        setHolidays(json.data); // IMPORTANT
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setHolidaysLoading(false);
       }
-
-      const json = await res.json();
-
-      console.log("HOLIDAYS:", json);
-
-      setHolidays(json.data); // IMPORTANT
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setHolidaysLoading(false);
     }
-  }
 
-  loadHolidays();
-}, []);
+    loadHolidays();
+  }, []);
 
 
+  // Live feed: KNMI weather warnings, refreshed every 5 minutes.
   useEffect(() => {
-  let intervalId: number | undefined;
+    let intervalId: number | undefined;
 
-  async function loadKnmiWarnings() {
-    try {
-      setKnmiLoading(true);
+    async function loadKnmiWarnings() {
+      try {
+        setKnmiLoading(true);
 
-      const res = await fetch(`${API_BASE_URL}/api/knmi/warnings`);
+        const res = await fetch(`${API_BASE_URL}/api/knmi/warnings`);
 
-      if (!res.ok) {
-        throw new Error("Failed to fetch KNMI warnings");
+        if (!res.ok) {
+          throw new Error("Failed to fetch KNMI warnings");
+        }
+
+        const json: KnmiWarningsResponse = await res.json();
+        setKnmiWarnings(json);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setKnmiLoading(false);
       }
-
-      const json: KnmiWarningsResponse = await res.json();
-      setKnmiWarnings(json);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setKnmiLoading(false);
     }
-  }
 
-  loadKnmiWarnings();
-
-  intervalId = window.setInterval(() => {
     loadKnmiWarnings();
-  }, 5 * 60 * 1000);
 
-  return () => {
-    if (intervalId) window.clearInterval(intervalId);
-  };
-}, []);
+    intervalId = window.setInterval(() => {
+      loadKnmiWarnings();
+    }, 5 * 60 * 1000);
 
-  const liveKnmiAlerts = useMemo(() => {
-  const features = knmiWarnings?.data?.features ?? [];
-
-  return features.slice(0, 3).map((feature, index) => {
-    const props = feature.properties ?? {};
-    const rawSeverity = (props.severity || "").toLowerCase();
-
-    let mappedSeverity: "info" | "warning" | "critical" = "info";
-    if (rawSeverity.includes("severe") || rawSeverity.includes("extreme")) {
-      mappedSeverity = "critical";
-    } else if (rawSeverity.includes("moderate")) {
-      mappedSeverity = "warning";
-    }
-
-    return {
-      id: `knmi-${index}`,
-      severity: mappedSeverity,
-      time: props.effective
-        ? new Date(props.effective).toLocaleString()
-        : "KNMI update",
-      title: props.headline || props.event || "KNMI weather warning",
-      detail: props.description || "No extra description available.",
-      zone: props.areaDesc || "Netherlands",
-      source: "KNMI",
+    return () => {
+      if (intervalId) window.clearInterval(intervalId);
     };
-  });
-}, [knmiWarnings]);
+  }, []);
 
+  // Normalize KNMI warning features into local alert item shape.
+  const liveKnmiAlerts = useMemo(() => {
+    const features = knmiWarnings?.data?.features ?? [];
+
+    return features.slice(0, 3).map((feature, index) => {
+      const props = feature.properties ?? {};
+      const rawSeverity = (props.severity || "").toLowerCase();
+
+      let mappedSeverity: "info" | "warning" | "critical" = "info";
+      if (rawSeverity.includes("severe") || rawSeverity.includes("extreme")) {
+        mappedSeverity = "critical";
+      } else if (rawSeverity.includes("moderate")) {
+        mappedSeverity = "warning";
+      }
+
+      return {
+        id: `knmi-${index}`,
+        severity: mappedSeverity,
+        time: props.effective
+          ? new Date(props.effective).toLocaleString()
+          : "KNMI update",
+        title: props.headline || props.event || "KNMI weather warning",
+        detail: props.description || "No extra description available.",
+        zone: props.areaDesc || "Netherlands",
+        source: "KNMI",
+      };
+    });
+  }, [knmiWarnings]);
+
+  // Merge static alerts with live KNMI alerts, then apply active filters.
   const filteredAlerts = useMemo(() => {
-  const combinedAlerts = [...liveKnmiAlerts, ...alertsData];
+    const combinedAlerts = [...liveKnmiAlerts, ...alertsData];
 
-  return combinedAlerts.filter((item) => {
-    const zoneMatch =
-      zone === "All locations" ||
-      item.zone === zone ||
-      item.zone === "Netherlands";
-    const severityMatch =
-      severity === "All severities" || item.severity === severity;
+    return combinedAlerts.filter((item) => {
+      const zoneMatch =
+        zone === "All locations" ||
+        item.zone === zone ||
+        item.zone === "Netherlands";
+      const severityMatch =
+        severity === "All severities" || item.severity === severity;
 
-    return zoneMatch && severityMatch;
-  });
+      return zoneMatch && severityMatch;
+    });
   }, [zone, severity, liveKnmiAlerts]);
 
+  // Apply active zone/category filters to system health panel.
   const filteredSensorHealth = useMemo(() => {
     return sensorHealth.filter((item) => {
       const zoneMatch = zone === "All locations" || item.zone === zone;
@@ -280,6 +294,7 @@ export function OperationsDashboard() {
     });
   }, [zone, category]);
 
+  // Swap mock KPI cards with live backend totals when available.
   const liveKpis = useMemo(() => {
     if (!summaryData) return kpis;
 
@@ -291,7 +306,7 @@ export function OperationsDashboard() {
         trend: "up" as const,
         helper: "counted in the current view",
         icon: footColor,
-        iconSize: "h-12 w-12", 
+        iconSize: "h-12 w-12",
       },
       {
         label: "Cyclists",
@@ -314,6 +329,7 @@ export function OperationsDashboard() {
     ];
   }, [summaryData]);
 
+  // Build line/area chart series from latest traffic samples.
   const livePedestrianTrend = useMemo(() => {
     if (!trafficSeries.length) return pedestrianTrend;
 
@@ -334,6 +350,7 @@ export function OperationsDashboard() {
     });
   }, [trafficSeries]);
 
+  // Build mobility access bars from latest traffic samples.
   const liveAccessActivity = useMemo(() => {
     if (!trafficSeries.length) {
       return [
@@ -354,6 +371,7 @@ export function OperationsDashboard() {
     }));
   }, [trafficSeries]);
 
+  // Convert raw totals into percentage split for modality pie chart.
   const liveModalitySplit = useMemo(() => {
     if (!summaryData) {
       return [
@@ -384,6 +402,7 @@ export function OperationsDashboard() {
     ];
   }, [summaryData]);
 
+  // Compact snapshot used in the "Latest count snapshot" mini cards.
   const scannerStats = useMemo(() => {
     if (!trafficSeries.length) {
       return { access: 102, vehicles: 26 };
@@ -396,6 +415,9 @@ export function OperationsDashboard() {
     };
   }, [trafficSeries]);
 
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
   return (
     <div
       className="min-h-screen p-6 md:p-8"
@@ -418,7 +440,7 @@ export function OperationsDashboard() {
           }}
         >
           <div className="max-w-4xl">
-            <h1 className="text-3xl font-semibold tracking-tight md:text-[2rem]" style={{ color: MAIN_COLORS.aColor2 }}>
+            <h1 className="text-3xl font-semibold tracking-tight md:text-[2rem]" style={{ color: MAIN_COLORS.aColor2, fontFamily: '"Vesper Libre", serif', }}>
               Tapp Marineterrein Urban Operations Intelligence Dashboard
             </h1>
             <p className="mt-3 max-w-4xl text-sm leading-6" style={{ color: MAIN_COLORS.aColorWhite }}>
@@ -500,6 +522,7 @@ export function OperationsDashboard() {
           </div>
         ) : null}
 
+        {/* KPI strip */}
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {liveKpis.map((kpi) => {
             const imageIcon = typeof kpi.icon === "string" ? kpi.icon : null;
@@ -546,6 +569,7 @@ export function OperationsDashboard() {
           })}
         </div>
 
+        {/* Primary situational view: crowd activity + active alerts */}
         <div className="grid gap-6 xl:grid-cols-[1.35fr_0.95fr]">
           <Card>
             <CardHeader>
@@ -633,9 +657,8 @@ export function OperationsDashboard() {
                       </div>
                       <div className="h-2 rounded-full" style={{ backgroundColor: `${MAIN_COLORS.aColorGray}33` }}>
                         <div
-                          className={`h-2 rounded-full ${
-                            item.density >= 80 ? "bg-rose-500" : item.density >= 70 ? "bg-lime-500" : "bg-emerald-500"
-                          }`}
+                          className={`h-2 rounded-full ${item.density >= 80 ? "bg-rose-500" : item.density >= 70 ? "bg-lime-500" : "bg-emerald-500"
+                            }`}
                           style={{ width: `${item.density}%` }}
                         />
                       </div>
@@ -691,40 +714,12 @@ export function OperationsDashboard() {
           </Card>
         </div>
 
-    <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-  <div className="flex flex-col gap-6">
-
-
- {/* HOLIDAYS */}
-    <Card>
-      <CardHeader>
-        <SectionTitle
-          title="Public holidays (NL)"
-          subtitle="Days that may impact crowd levels"
-        />
-      </CardHeader>
-      <CardContent>
-        {holidays.slice(0, 5).map((holiday) => (
-          <div
-            key={holiday.date}
-            className="rounded-xl border border-slate-200 bg-slate-50 p-3 mb-2"
-          >
-            <p className="text-sm font-medium text-slate-800">
-              {holiday.localName}
-            </p>
-            <p className="text-xs text-slate-500">
-              {new Date(holiday.date).toLocaleDateString()}
-            </p>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-
-      
+        {/* Operations analysis row */}
+        <div className="grid gap-6 xl:grid-cols-2">
           <Card>
             <CardHeader>
               <SectionTitle
-                title="Mobility, access, and modality"
+                title="Mobility, Access, and Modality"
                 subtitle="Arrivals and transport mix for the selected view"
               />
             </CardHeader>
@@ -810,93 +805,11 @@ export function OperationsDashboard() {
             </CardContent>
           </Card>
 
-          <div className="grid gap-6">
-            <Card>
-              <CardHeader>
-                <SectionTitle title="Water & recreation status" subtitle="Swim area conditions and shoreline activity" />
-              </CardHeader>
-              <CardContent className="grid gap-4 md:grid-cols-3 xl:grid-cols-1">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-slate-800">Swim area status</p>
-                      <p className="text-xs text-slate-500">Current operational state</p>
-                    </div>
-                    <Droplets className="h-4 w-4 text-slate-500" />
-                  </div>
-                  <div className="mt-3 flex items-end gap-2">
-                    <p className="text-2xl font-semibold text-slate-950">Open</p>
-                    <Pill tone="amber">near threshold</Pill>
-                  </div>
-                  <p className="mt-2 text-sm text-slate-600">
-                    74 swimmers active, soft capacity 80, hard capacity 95.
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-slate-800">Water temperature</p>
-                      <p className="text-xs text-slate-500">Rolling sensor average</p>
-                    </div>
-                    <Waves className="h-4 w-4 text-slate-500" />
-                  </div>
-                  <p className="mt-3 text-2xl font-semibold text-slate-950">19.1°C</p>
-                  <p className="mt-2 text-sm text-slate-600">
-                    Within expected recreational band. Rising slowly through the morning.
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-slate-800">Picnic activity</p>
-                      <p className="text-xs text-slate-500">Public space activity cue</p>
-                    </div>
-                    <Trees className="h-4 w-4 text-slate-500" />
-                  </div>
-                  <p className="mt-3 text-2xl font-semibold text-slate-950">31 setups</p>
-                  <p className="mt-2 text-sm text-slate-600">Moderate shore-side dwell time; no intervention needed.</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <SectionTitle title="Public infrastructure" subtitle="Status of visible operational assets" />
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {infrastructureStatus.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <div key={item.label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-medium text-slate-800">{item.label}</p>
-                          <p className="mt-1 text-xs text-slate-500">{item.note}</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className="text-lg font-semibold text-slate-950">{item.value}</span>
-                          <div className="rounded-2xl bg-white p-2 text-slate-700">
-                            <Icon className="h-4 w-4" />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-</div>  
-
-        <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
           <Card>
             <CardHeader>
               <SectionTitle
-                title="Environmental + crowd correlation"
-                subtitle="A simple view of how activity and sound levels move together"
+                title="Environmental + Crowd Correlation"
+                subtitle="How activity and sound levels move together"
               />
             </CardHeader>
             <CardContent>
@@ -969,44 +882,107 @@ export function OperationsDashboard() {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Domain status row */}
+        <div className="grid gap-6 xl:grid-cols-3">
+          <Card>
+            <CardHeader>
+              <SectionTitle title="Public Infrastructure" subtitle="Status of visible operational assets" />
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {infrastructureStatus.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium text-slate-800">{item.label}</p>
+                        <p className="mt-1 text-xs text-slate-500">{item.note}</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-lg font-semibold text-slate-950">{item.value}</span>
+                        <div className="rounded-2xl bg-white p-2 text-slate-700">
+                          <Icon className="h-4 w-4" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>
-              <SectionTitle title="Historical trend snapshot" subtitle="Seven-day context for operations planning" />
+              <SectionTitle title="Water & Recreation Status" subtitle="Swim area conditions and shoreline activity" />
             </CardHeader>
-            <CardContent>
-              <div className="h-[270px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={dailyTrend}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={`${MAIN_COLORS.aColorGray}55`} />
-                    <XAxis dataKey="day" tick={{ fill: MAIN_COLORS.aColorGray, fontSize: 12 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: MAIN_COLORS.aColorGray, fontSize: 12 }} axisLine={false} tickLine={false} />
-                    <Tooltip />
-                    <Bar dataKey="visitors" fill={MAIN_COLORS.aColor1} radius={[10, 10, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+            <CardContent className="grid gap-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-800">Swim area status</p>
+                    <p className="text-xs text-slate-500">Current operational state</p>
+                  </div>
+                  <Droplets className="h-4 w-4 text-slate-500" />
+                </div>
+                <div className="mt-3 flex items-end gap-2">
+                  <p className="text-2xl font-semibold text-slate-950">Open</p>
+                  <Pill tone="amber">near threshold</Pill>
+                </div>
+                <p className="mt-2 text-sm text-slate-600">74 swimmers active, soft capacity 80, hard capacity 95.</p>
               </div>
 
-              <div className="mt-4 grid gap-3 md:grid-cols-3">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs uppercase tracking-[0.14em] text-slate-500">7-day visitors</p>
-                  <p className="mt-2 text-2xl font-semibold text-slate-950">33.0k</p>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-800">Water temperature</p>
+                    <p className="text-xs text-slate-500">Rolling sensor average</p>
+                  </div>
+                  <Waves className="h-4 w-4 text-slate-500" />
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Avg. daily alerts</p>
-                  <p className="mt-2 text-2xl font-semibold text-slate-950">4.0</p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Avg. noise</p>
-                  <p className="mt-2 text-2xl font-semibold text-slate-950">63.9 dB</p>
-                </div>
+                <p className="mt-3 text-2xl font-semibold text-slate-950">19.1°C</p>
+                <p className="mt-2 text-sm text-slate-600">
+                  Within expected recreational band. Rising slowly through the morning.
+                </p>
               </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-800">Picnic activity</p>
+                    <p className="text-xs text-slate-500">Public space activity cue</p>
+                  </div>
+                  <Trees className="h-4 w-4 text-slate-500" />
+                </div>
+                <p className="mt-3 text-2xl font-semibold text-slate-950">31 setups</p>
+                <p className="mt-2 text-sm text-slate-600">Moderate shore-side dwell time; no intervention needed.</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <SectionTitle title="Public Holidays (NL)" subtitle="Days that may impact crowd levels" />
+            </CardHeader>
+            <CardContent>
+              {holidaysLoading ? (
+                <p className="text-sm text-slate-500">Loading holidays...</p>
+              ) : (
+                holidays.slice(0, 6).map((holiday) => (
+                  <div key={holiday.date} className="mb-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-sm font-medium text-slate-800">{holiday.localName}</p>
+                    <p className="text-xs text-slate-500">{new Date(holiday.date).toLocaleDateString()}</p>
+                  </div>
+                ))
+              )}
             </CardContent>
           </Card>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-          <Card className="order-2">
+        {/* Action and planning row */}
+        <div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
+          <Card>
             <CardHeader>
               <SectionTitle
                 title="System check"
@@ -1047,21 +1023,57 @@ export function OperationsDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="order-1">
-            <CardHeader>
-              <SectionTitle title="Operator notes" subtitle="Action framing for the next 30–60 minutes" />
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-sm font-medium text-slate-800">Recommended attention areas</p>
-                <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
-                  <li>CODAM (039): check whether the higher sound level is linked to an event or a temporary crowd build-up.</li>
-                  <li>TAPP (027 E): keep an eye on lunch-time activity if visitor numbers continue to rise.</li>
-                  <li>AHK MakerSpace (027 N): restore the camera feed so the team has full visual coverage again.</li>
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="grid gap-6">
+            <Card>
+              <CardHeader>
+                <SectionTitle title="Historical Trend Snapshot" subtitle="Seven-day context for operations planning" />
+              </CardHeader>
+              <CardContent>
+                <div className="h-[240px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={dailyTrend}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={`${MAIN_COLORS.aColorGray}55`} />
+                      <XAxis dataKey="day" tick={{ fill: MAIN_COLORS.aColorGray, fontSize: 12 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fill: MAIN_COLORS.aColorGray, fontSize: 12 }} axisLine={false} tickLine={false} />
+                      <Tooltip />
+                      <Bar dataKey="visitors" fill={MAIN_COLORS.aColor1} radius={[10, 10, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-1">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs uppercase tracking-[0.14em] text-slate-500">7-day visitors</p>
+                    <p className="mt-2 text-2xl font-semibold text-slate-950">33.0k</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Avg. daily alerts</p>
+                    <p className="mt-2 text-2xl font-semibold text-slate-950">4.0</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Avg. noise</p>
+                    <p className="mt-2 text-2xl font-semibold text-slate-950">63.9 dB</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <SectionTitle title="Operator Notes" subtitle="Action framing for the next 30–60 minutes" />
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-medium text-slate-800">Recommended attention areas</p>
+                  <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
+                    <li>CODAM (039): check whether the higher sound level is linked to an event or a temporary crowd build-up.</li>
+                    <li>TAPP (027 E): keep an eye on lunch-time activity if visitor numbers continue to rise.</li>
+                    <li>AHK MakerSpace (027 N): restore the camera feed so the team has full visual coverage again.</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>
