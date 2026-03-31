@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { LoaderCircle, Map, RefreshCw } from "lucide-react";
+import { useMemo, useState } from "react";
+import { DatabaseZap, LoaderCircle, Map, RefreshCw } from "lucide-react";
+import { useOpsLiveData } from "../../../hooks/useOpsLiveData";
 import { Card, CardContent, CardHeader, Pill, SectionTitle } from "../ui";
 import { LayerToggles } from "./LayerToggles";
 import { OperationsMapCanvas } from "./OperationsMapCanvas";
@@ -10,9 +11,10 @@ import {
   buildWarningPoints,
   buildWeatherPoints,
   buildZoneFeatures,
+  formatTimestamp,
   getStatusTone,
 } from "./opsMapTransforms";
-import type { LayerVisibility, OpsHealthResponse, OpsLiveOverviewResponse } from "./types";
+import type { LayerVisibility } from "./types";
 
 const DEFAULT_VISIBILITY: LayerVisibility = {
   mobility: true,
@@ -22,71 +24,9 @@ const DEFAULT_VISIBILITY: LayerVisibility = {
   labels: true,
 };
 
-const EMPTY_OVERVIEW: OpsLiveOverviewResponse = {
-  schemaVersion: "ops-live-v1",
-  generatedAt: new Date(0).toISOString(),
-  records: [],
-  sources: {},
-  summary: {
-    totalRecords: 0,
-    bySource: {},
-    byCategory: {},
-  },
-};
-
 export function LiveOperationsMapSection() {
-  const [overview, setOverview] = useState<OpsLiveOverviewResponse>(EMPTY_OVERVIEW);
-  const [health, setHealth] = useState<OpsHealthResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [visibility, setVisibility] = useState<LayerVisibility>(DEFAULT_VISIBILITY);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadMapData() {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const [overviewRes, healthRes] = await Promise.all([
-          fetch("/api/ops/live/overview"),
-          fetch("/api/ops/health"),
-        ]);
-
-        if (!overviewRes.ok) {
-          throw new Error("Failed to fetch live ops overview data");
-        }
-
-        const [overviewJson, healthJson] = await Promise.all([
-          overviewRes.json() as Promise<OpsLiveOverviewResponse>,
-          healthRes.json() as Promise<OpsHealthResponse>,
-        ]);
-
-        if (!cancelled) {
-          setOverview(overviewJson);
-          setHealth(healthJson);
-        }
-      } catch (fetchError) {
-        console.error(fetchError);
-        if (!cancelled) {
-          setError("Live map data is temporarily unavailable. Zone structure is still shown so the dashboard stays usable.");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    loadMapData();
-    const intervalId = window.setInterval(loadMapData, 5 * 60 * 1000);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-    };
-  }, []);
+  const { overview, health, loading, error } = useOpsLiveData();
 
   const zones = useMemo(() => buildZoneFeatures(overview.records), [overview.records]);
   const mobilityPoints = useMemo(() => buildMobilityPoints(overview.records), [overview.records]);
@@ -102,14 +42,15 @@ export function LiveOperationsMapSection() {
   }
 
   const hasLiveData = overview.records.length > 0;
+  const sourceChips = health ? Object.entries(health.sources) : [];
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden border-emerald-100/90">
       <CardHeader className="pb-5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <SectionTitle
             title="Live operations map"
-            subtitle="Spatial view of Marineterrein mobility, operational zones, and environmental context from the unified ops backend."
+            subtitle="Primary spatial layer for Marineterrein operations, driven by the unified live ops feed and ready for future alerts and anomaly overlays."
           />
 
           <div className="flex flex-wrap items-center gap-2">
@@ -124,25 +65,34 @@ export function LiveOperationsMapSection() {
           </div>
         </div>
 
-        <div className="mt-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <LayerToggles visibility={visibility} onChange={toggleLayer} />
+        <div className="mt-4 grid gap-3 xl:grid-cols-[1fr_auto] xl:items-start">
+          <div className="space-y-3">
+            <LayerToggles visibility={visibility} onChange={toggleLayer} />
+            <div className="flex flex-wrap gap-2">
+              {sourceChips.map(([sourceName, source]) => (
+                <span
+                  key={sourceName}
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-[rgba(255,255,255,0.72)] px-3 py-2 text-xs text-slate-600"
+                >
+                  <DatabaseZap className="h-3.5 w-3.5" />
+                  <span className="capitalize">{sourceName}</span>
+                  <Pill tone={getStatusTone(source.status)}>{source.status}</Pill>
+                  <span>{source.recordCount} records</span>
+                </span>
+              ))}
+            </div>
+          </div>
+
           <div className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-2 text-sm text-emerald-900">
             <Map className="h-4 w-4" />
-            Marineterrein map foundation ready for alerts, anomalies, and prediction overlays later
+            Spatial overview synced {formatTimestamp(overview.generatedAt || null)}
           </div>
         </div>
       </CardHeader>
 
       <CardContent className="grid gap-6 xl:grid-cols-[1.45fr_0.75fr]">
         <div className="space-y-3">
-          {loading ? (
-            <div className="flex h-[560px] items-center justify-center rounded-[28px] border border-slate-200 bg-slate-50">
-              <div className="flex items-center gap-3 text-slate-500">
-                <LoaderCircle className="h-5 w-5 animate-spin" />
-                Loading live map layers...
-              </div>
-            </div>
-          ) : (
+          <div className="relative">
             <OperationsMapCanvas
               visibility={visibility}
               zones={zones}
@@ -150,11 +100,25 @@ export function LiveOperationsMapSection() {
               weatherPoints={weatherPoints}
               warningPoints={warningPoints}
             />
-          )}
+
+            {loading ? (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-[28px] bg-white/35 backdrop-blur-[2px]">
+                <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-white/90 px-4 py-3 text-sm text-slate-600 shadow-sm">
+                  <LoaderCircle className="h-5 w-5 animate-spin" />
+                  Loading live map layers...
+                </div>
+              </div>
+            ) : null}
+          </div>
 
           {error ? (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
               {error}
+            </div>
+          ) : !hasLiveData ? (
+            <div className="rounded-2xl border border-slate-200 bg-[rgba(248,250,252,0.82)] px-4 py-3 text-sm text-slate-600">
+              Live source records are currently empty, so the map is showing Marineterrein zone structure and source
+              health context while upstream feeds recover.
             </div>
           ) : null}
         </div>

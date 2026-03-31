@@ -30,7 +30,7 @@ export function OperationsMapCanvas({
   warningPoints: WarningPoint[];
 }) {
   return (
-    <div className="overflow-hidden rounded-[28px] border border-emerald-100 bg-[#eef5f0]">
+    <div className="overflow-hidden rounded-[28px] border border-emerald-100 bg-[linear-gradient(180deg,#eff7f2_0%,#edf4ef_100%)] shadow-[0_18px_40px_rgba(21,128,61,0.08)]">
       <MapContainer
         center={MAP_CENTER}
         zoom={MAP_ZOOM}

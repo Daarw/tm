@@ -3,6 +3,7 @@ import { Activity, CloudSun, RefreshCw, ShieldAlert, TrafficCone } from "lucide-
 import { Pill } from "../ui";
 import { formatTimestamp, getStatusTone } from "./opsMapTransforms";
 import type { OpsHealthResponse, SpatialSummary } from "./types";
+import { MapLegend } from "./MapLegend";
 
 function SummaryTile({
   title,
@@ -98,6 +99,8 @@ export function SpatialSummaryPanel({
           )}
         </div>
       </div>
+
+      <MapLegend />
     </div>
   );
 }

@@ -124,9 +124,9 @@ export async function getKnmiLiveData(env) {
         source: "knmi",
         status: records.some((record) => record.status === "critical")
           ? "critical"
-          : records.length
-            ? "ok"
-            : "unknown",
+          : records.some((record) => record.status === "warning")
+            ? "warning"
+            : "ok",
         fetchedAt,
         lastSuccessAt: fetchedAt,
         records,

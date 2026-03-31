@@ -1,5 +1,6 @@
 import { CloudRain, Wind } from "lucide-react";
 import { Pill } from "./ui";
+import { MAIN_COLORS } from "./theme";
 
 type WeatherWidgetModel = {
   statusTone: "slate" | "emerald" | "amber" | "rose";
@@ -28,9 +29,19 @@ function WeatherGlyph({ tone }: { tone: WeatherWidgetModel["statusTone"] }) {
 
 const WeatherWidget = ({ model }: { model: WeatherWidgetModel }) => {
   return (
-    <div className="rounded-[2rem] bg-white p-6">
+    <div
+      className="rounded-[2rem] p-6 backdrop-blur"
+      style={{
+        border: `1px solid ${MAIN_COLORS.aColorWhite}b3`,
+        background: "linear-gradient(135deg, rgba(252,252,252,0.72), rgba(240,248,251,0.82))",
+        boxShadow: `0 12px 35px ${MAIN_COLORS.aColorBlack}12`,
+      }}
+    >
       <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-5 md:pr-10 md:border-r md:border-gray-100">
+        <div
+          className="flex items-center gap-5 md:pr-10"
+          style={{ borderRight: `1px solid ${MAIN_COLORS.aColorWhite}80` }}
+        >
           <WeatherGlyph tone={model.statusTone} />
           <div>
             <div className="flex items-center gap-2">
@@ -45,7 +56,14 @@ const WeatherWidget = ({ model }: { model: WeatherWidgetModel }) => {
 
         <div className="grid flex-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {model.metrics.map((metric) => (
-            <div key={metric.label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div
+              key={metric.label}
+              className="rounded-2xl p-4"
+              style={{
+                border: `1px solid ${MAIN_COLORS.aColorWhite}99`,
+                backgroundColor: "rgba(255,255,255,0.52)",
+              }}
+            >
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs uppercase tracking-[0.14em] text-slate-500">{metric.label}</p>
                 <Wind className="h-4 w-4 text-slate-400" />

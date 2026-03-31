@@ -30,7 +30,6 @@ import {
 } from "recharts";
 import {
   anomalyPanel as demoAnomalyPanel,
-  crowdByZone as demoCrowdByZone,
   dailyTrend as demoDailyTrend,
   infrastructureStatus as demoInfrastructureStatus,
   modeOptions,
@@ -50,6 +49,7 @@ import {
   deriveMobilitySnapshot,
   deriveSourceHealthItems,
   deriveWeatherWidgetModel,
+  deriveZoneSnapshotCards,
 } from "./opsLiveViewModel";
 import WeatherWidget from "./WeatherWidget";
 
@@ -85,36 +85,24 @@ export function OperationsDashboard() {
   const liveWeatherWidget = useMemo(() => deriveWeatherWidgetModel(overview, health), [overview, health]);
   const liveMetaSummary = useMemo(() => deriveLiveMetaSummary(overview, health), [overview, health]);
   const mobilitySnapshot = useMemo(() => deriveMobilitySnapshot(overview), [overview]);
+  const zoneSnapshotCards = useMemo(() => deriveZoneSnapshotCards(overview), [overview]);
+  const hasLiveMobilitySnapshot = mobilitySnapshot.total > 0;
 
   const livePedestrianTrend = useMemo(() => {
     return demoPedestrianTrend;
   }, []);
 
   const liveAccessActivity = useMemo(() => {
-    if (!mobilitySnapshot.total) {
-      return [
-        { time: "09:20", access: 18, vehicles: 4 },
-        { time: "09:40", access: 22, vehicles: 7 },
-        { time: "10:00", access: 27, vehicles: 6 },
-        { time: "10:20", access: 35, vehicles: 9 },
-      ];
+    if (!hasLiveMobilitySnapshot) {
+      return [];
     }
 
     return [
       { time: "Current", access: mobilitySnapshot.pedestrians + mobilitySnapshot.bicycles, vehicles: mobilitySnapshot.vehicles },
     ];
-  }, [mobilitySnapshot]);
+  }, [hasLiveMobilitySnapshot, mobilitySnapshot]);
 
   const liveModalitySplit = useMemo(() => {
-    if (!mobilitySnapshot.total) {
-      return [
-        { name: "Pedestrian", value: 61 },
-        { name: "Bike", value: 23 },
-        { name: "Service Vehicle", value: 9 },
-        { name: "Other", value: 7 },
-      ];
-    }
-
     const pedestrians = mobilitySnapshot.pedestrians;
     const bicycles = mobilitySnapshot.bicycles;
     const vehicles = mobilitySnapshot.vehicles;
@@ -136,20 +124,16 @@ export function OperationsDashboard() {
   }, [mobilitySnapshot]);
 
   const scannerStats = useMemo(() => {
-    if (!mobilitySnapshot.total) {
-      return { access: 102, vehicles: 26 };
-    }
-
     return {
-      access: mobilitySnapshot.pedestrians + mobilitySnapshot.bicycles,
-      vehicles: mobilitySnapshot.vehicles,
+      access: hasLiveMobilitySnapshot ? mobilitySnapshot.pedestrians + mobilitySnapshot.bicycles : null,
+      vehicles: hasLiveMobilitySnapshot ? mobilitySnapshot.vehicles : null,
     };
-  }, [mobilitySnapshot]);
+  }, [hasLiveMobilitySnapshot, mobilitySnapshot]);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.16),_transparent_30%),linear-gradient(180deg,#f3fbf6_0%,#e4f3e8_52%,#edf6ee_100%)] p-6 text-slate-900 md:p-8">
       <div className="mx-auto max-w-7xl space-y-6">
-        <div className="rounded-[30px] border border-white/80 bg-white/90 px-6 py-7 shadow-sm backdrop-blur md:px-8">
+        <div className="rounded-[30px] border border-white/70 bg-[rgba(252,252,252,0.72)] px-6 py-7 shadow-sm backdrop-blur md:px-8">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-4xl">
               <h1 className="text-3xl font-semibold tracking-tight text-slate-950 md:text-[2rem]">
@@ -175,7 +159,7 @@ export function OperationsDashboard() {
 
         <WeatherWidget model={liveWeatherWidget} />
 
-        <div className="rounded-[30px] border border-emerald-200/90 bg-gradient-to-r from-emerald-50 via-white to-lime-50 px-6 py-6 text-slate-900 shadow-[0_18px_45px_rgba(21,128,61,0.10)] md:px-8">
+        <div className="rounded-[30px] border border-emerald-200/90 bg-gradient-to-r from-emerald-50/95 via-[rgba(252,252,252,0.76)] to-lime-50/90 px-6 py-6 text-slate-900 shadow-[0_18px_45px_rgba(21,128,61,0.10)] backdrop-blur md:px-8">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl">
               <p className="text-xs font-medium uppercase tracking-[0.22em] text-emerald-700">Operator controls</p>
@@ -265,7 +249,7 @@ export function OperationsDashboard() {
             <CardHeader>
               <SectionTitle
                 title="Live activity overview"
-                subtitle="People movement and overall activity in the current view"
+                subtitle="Current live zone state plus demo historical context until real trend storage is available"
               />
             </CardHeader>
             <CardContent className="space-y-5">
@@ -302,8 +286,13 @@ export function OperationsDashboard() {
                 </ResponsiveContainer>
               </div>
 
+              <p className="text-xs text-slate-500">
+                The chart remains a demo historical placeholder for now. The current unified ops feed is snapshot-based
+                and does not yet provide truthful time-series history.
+              </p>
+
               <div className="grid gap-3 md:grid-cols-4">
-                {demoCrowdByZone.map((item) => (
+                {zoneSnapshotCards.map((item) => (
                   <div key={item.zone} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-medium text-slate-800">{item.zone}</p>
@@ -323,7 +312,7 @@ export function OperationsDashboard() {
                     </div>
 
                     <p className="mt-3 text-2xl font-semibold text-slate-950">{item.visitors}</p>
-                    <p className="text-xs text-slate-500">estimated visitors right now</p>
+                    <p className="text-xs text-slate-500">{item.helper}</p>
 
                     <div className="mt-3">
                       <div className="mb-1 flex items-center justify-between text-xs text-slate-500">
@@ -405,20 +394,32 @@ export function OperationsDashboard() {
             <CardContent>
               <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
                 <div className="h-[260px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={liveAccessActivity}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#dbe7df" />
-                      <XAxis dataKey="time" tick={{ fill: "#64748b", fontSize: 12 }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fill: "#64748b", fontSize: 12 }} axisLine={false} tickLine={false} />
-                      <Tooltip />
-                      <Bar dataKey="access" radius={[8, 8, 0, 0]} fill="#047857" name="Pedestrian + bike" />
-                      <Bar dataKey="vehicles" radius={[8, 8, 0, 0]} fill="#84cc16" name="Vehicles" />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  {hasLiveMobilitySnapshot ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={liveAccessActivity}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#dbe7df" />
+                        <XAxis dataKey="time" tick={{ fill: "#64748b", fontSize: 12 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fill: "#64748b", fontSize: 12 }} axisLine={false} tickLine={false} />
+                        <Tooltip />
+                        <Bar dataKey="access" radius={[8, 8, 0, 0]} fill="#047857" name="Pedestrian + bike" />
+                        <Bar dataKey="vehicles" radius={[8, 8, 0, 0]} fill="#84cc16" name="Vehicles" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex h-full items-center justify-center rounded-2xl border border-slate-200 bg-[rgba(248,250,252,0.82)] px-6 text-center">
+                      <div className="max-w-sm space-y-2">
+                        <p className="text-sm font-medium text-slate-800">No current live mobility snapshot</p>
+                        <p className="text-xs leading-6 text-slate-500">
+                          This panel updates from the unified ops feed when Telraam mobility records are available.
+                          Until then, we avoid showing synthetic chart history.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-1">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="rounded-2xl border border-slate-200 bg-[rgba(248,250,252,0.78)] p-4">
                     <div className="mb-4 flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-slate-800">Modality split</p>
@@ -427,44 +428,52 @@ export function OperationsDashboard() {
                       <Router className="h-4 w-4 text-slate-500" />
                     </div>
 
-                    <div className="h-[180px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie data={liveModalitySplit} innerRadius={42} outerRadius={70} dataKey="value" paddingAngle={3}>
-                            {liveModalitySplit.map((entry, index) => (
-                              <Cell key={entry.name} fill={["#047857", "#10b981", "#84cc16", "#d9f99d"][index % 4]} />
+                      {hasLiveMobilitySnapshot ? (
+                        <>
+                          <div className="h-[180px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <PieChart>
+                                <Pie data={liveModalitySplit} innerRadius={42} outerRadius={70} dataKey="value" paddingAngle={3}>
+                                  {liveModalitySplit.map((entry, index) => (
+                                    <Cell key={entry.name} fill={["#047857", "#10b981", "#84cc16", "#d9f99d"][index % 4]} />
+                                  ))}
+                                </Pie>
+                                <Tooltip />
+                              </PieChart>
+                            </ResponsiveContainer>
+                          </div>
+
+                          <div className="space-y-2">
+                            {liveModalitySplit.map((item) => (
+                              <div key={item.name} className="flex items-center justify-between text-sm">
+                                <span className="text-slate-600">{item.name}</span>
+                                <span className="font-medium text-slate-900">{item.value}%</span>
+                              </div>
                             ))}
-                          </Pie>
-                          <Tooltip />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-
-                    <div className="space-y-2">
-                      {liveModalitySplit.map((item) => (
-                        <div key={item.name} className="flex items-center justify-between text-sm">
-                          <span className="text-slate-600">{item.name}</span>
-                          <span className="font-medium text-slate-900">{item.value}%</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex h-[220px] items-center justify-center text-center text-sm text-slate-500">
+                          No current mode split is available until live mobility counts arrive.
                         </div>
-                      ))}
+                      )}
                     </div>
-                  </div>
 
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="rounded-2xl border border-slate-200 bg-[rgba(248,250,252,0.78)] p-4">
                     <div className="flex items-center gap-2">
                       <ScanLine className="h-4 w-4 text-slate-600" />
                       <p className="text-sm font-medium text-slate-800">Latest count snapshot</p>
                     </div>
 
-                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                      <div className="rounded-2xl bg-white p-3">
-                        <p className="text-slate-500">Pedestrian + bike</p>
-                        <p className="mt-1 text-xl font-semibold text-slate-950">{scannerStats.access}</p>
-                      </div>
-                      <div className="rounded-2xl bg-white p-3">
-                        <p className="text-slate-500">Vehicles</p>
-                        <p className="mt-1 text-xl font-semibold text-slate-950">{scannerStats.vehicles}</p>
-                      </div>
+                      <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                        <div className="rounded-2xl bg-[rgba(255,255,255,0.72)] p-3">
+                          <p className="text-slate-500">Pedestrian + bike</p>
+                          <p className="mt-1 text-xl font-semibold text-slate-950">{scannerStats.access ?? "Unavailable"}</p>
+                        </div>
+                        <div className="rounded-2xl bg-[rgba(255,255,255,0.72)] p-3">
+                          <p className="text-slate-500">Vehicles</p>
+                          <p className="mt-1 text-xl font-semibold text-slate-950">{scannerStats.vehicles ?? "Unavailable"}</p>
+                        </div>
                     </div>
 
                     <p className="mt-3 text-xs text-slate-500">
@@ -531,11 +540,14 @@ export function OperationsDashboard() {
             </Card>
 
             <Card>
-              <CardHeader>
-                <SectionTitle title="Public infrastructure" subtitle="Status of visible operational assets" />
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {demoInfrastructureStatus.map((item) => {
+            <CardHeader>
+              <SectionTitle title="Public infrastructure" subtitle="Status of visible operational assets" />
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-xs text-slate-500">
+                Demo placeholder until infrastructure telemetry is added to the unified live ops feed.
+              </p>
+              {demoInfrastructureStatus.map((item) => {
                   const Icon = item.icon;
                   return (
                     <div key={item.label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -564,7 +576,7 @@ export function OperationsDashboard() {
             <CardHeader>
               <SectionTitle
                 title="Environmental + crowd correlation"
-                subtitle="A simple view of how activity and sound levels move together"
+                subtitle="Demo historical placeholder until the live ops feed includes stored environmental history"
               />
             </CardHeader>
             <CardContent>
@@ -604,6 +616,11 @@ export function OperationsDashboard() {
                 </ResponsiveContainer>
               </div>
 
+              <p className="mt-4 text-xs text-slate-500">
+                This trend/correlation card remains demo because the current ops endpoints expose current-state signals,
+                not historical environmental series.
+              </p>
+
               <div className="mt-4 grid gap-3 md:grid-cols-3">
                 {demoAnomalyPanel.map((item) => (
                   <div key={item.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -630,7 +647,7 @@ export function OperationsDashboard() {
 
           <Card>
             <CardHeader>
-              <SectionTitle title="Historical trend snapshot" subtitle="Seven-day context for operations planning" />
+              <SectionTitle title="Historical trend snapshot" subtitle="Demo placeholder until the live backend exposes stored history" />
             </CardHeader>
             <CardContent>
               <div className="h-[270px]">

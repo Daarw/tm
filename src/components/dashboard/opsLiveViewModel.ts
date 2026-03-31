@@ -252,3 +252,51 @@ export function deriveMobilitySnapshot(overview: OpsLiveOverviewResponse) {
     total,
   };
 }
+
+export function deriveZoneSnapshotCards(overview: OpsLiveOverviewResponse) {
+  const preferredZones = ["Portiersloge", "TAPP", "CODAM", "AHK MakerSpace"];
+  const grouped = new Map<string, UnifiedLiveRecord[]>();
+
+  for (const record of overview.records) {
+    const zoneName = record.zone || "General Marineterrein / unknown";
+    grouped.set(zoneName, [...(grouped.get(zoneName) || []), record]);
+  }
+
+  const cards = preferredZones.map((zoneName) => {
+    const records = grouped.get(zoneName) || [];
+    const totalFlow =
+      asNumber(records.find((record) => record.metric === "total_flow")?.value ?? null) ||
+      records
+        .filter((record) => record.category === "mobility")
+        .reduce((sum, record) => sum + (asNumber(record.value) || 0), 0);
+    const warningCount = records.filter((record) => record.category === "warning").length;
+    const status =
+      warningCount > 0
+        ? "watch"
+        : totalFlow >= 150
+          ? "busy"
+          : totalFlow > 0
+            ? "stable"
+            : "calm";
+
+    return {
+      zone: zoneName,
+      visitors: totalFlow,
+      density: 0,
+      status,
+      helper:
+        warningCount > 0
+          ? `${warningCount} warning signal${warningCount > 1 ? "s" : ""}`
+          : totalFlow > 0
+            ? "current live movement count"
+            : "no mapped live data yet",
+    };
+  });
+
+  const maxVisitors = Math.max(...cards.map((card) => card.visitors), 0);
+
+  return cards.map((card) => ({
+    ...card,
+    density: maxVisitors > 0 ? Math.round((card.visitors / maxVisitors) * 100) : 0,
+  }));
+}
