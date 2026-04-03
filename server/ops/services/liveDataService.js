@@ -9,7 +9,7 @@ export async function getUnifiedLiveData({ includeRaw = false } = {}) {
 
   const sources = await Promise.all([
     getTelraamLiveData(env),
-    getKnmiLiveData(env),
+    //getKnmiLiveData(env),
     getWeatherLiveData(env),
   ]);
 

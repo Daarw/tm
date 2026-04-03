@@ -1,5 +1,5 @@
 import React from "react";
-import { MAIN_COLORS } from "./theme";
+import { MAIN_COLORS } from "../../styles/theme";
 
 export function Card({
   className = "",
