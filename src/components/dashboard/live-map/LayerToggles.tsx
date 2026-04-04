@@ -1,4 +1,5 @@
 import { Layers3, MapPinned, TriangleAlert, Umbrella, Waypoints } from "lucide-react";
+import { LAYER_TOGGLE_THEME } from "../../../styles/theme";
 import type { LayerVisibility } from "./types";
 
 const toggleMeta = [
@@ -27,11 +28,8 @@ export function LayerToggles({
             key={toggle.key}
             type="button"
             onClick={() => onChange(toggle.key)}
-            className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition ${
-              active
-                ? "border-emerald-300 bg-emerald-50 text-emerald-900"
-                : "border-slate-200 bg-white text-slate-600 hover:border-emerald-200"
-            }`}
+            style={active ? LAYER_TOGGLE_THEME.active : LAYER_TOGGLE_THEME.inactive}
+            className="inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition"
           >
             <Icon className="h-4 w-4" />
             {toggle.label}

@@ -1,6 +1,6 @@
 import { CloudRain, Wind } from "lucide-react";
 import { Pill } from "./ui";
-import { MAIN_COLORS } from "./theme";
+import { MAIN_COLORS } from "../../styles/theme";
 
 type WeatherWidgetModel = {
   statusTone: "slate" | "emerald" | "amber" | "rose";
@@ -12,16 +12,19 @@ type WeatherWidgetModel = {
   helper: string;
 };
 
-const iconTone: Record<WeatherWidgetModel["statusTone"], string> = {
-  slate: "bg-slate-100 text-slate-600",
-  emerald: "bg-emerald-100 text-emerald-700",
-  amber: "bg-amber-100 text-amber-700",
-  rose: "bg-rose-100 text-rose-700",
+const iconToneStyle: Record<WeatherWidgetModel["statusTone"], { backgroundColor: string; color: string }> = {
+  slate:   { backgroundColor: `${MAIN_COLORS.aColorGray}22`,  color: MAIN_COLORS.aColorGray },
+  emerald: { backgroundColor: `${MAIN_COLORS.aColor1}22`,     color: MAIN_COLORS.aColor1 },
+  amber:   { backgroundColor: `${MAIN_COLORS.aColor2}22`,     color: MAIN_COLORS.aColor2 },
+  rose:    { backgroundColor: `${MAIN_COLORS.aColorBlack}22`, color: MAIN_COLORS.aColorBlack },
 };
 
 function WeatherGlyph({ tone }: { tone: WeatherWidgetModel["statusTone"] }) {
   return (
-    <div className={`flex h-20 w-20 items-center justify-center rounded-[1.5rem] ${iconTone[tone]}`}>
+    <div
+      className="flex h-20 w-20 items-center justify-center rounded-[1.5rem]"
+      style={iconToneStyle[tone]}
+    >
       <CloudRain className="h-10 w-10" />
     </div>
   );
@@ -33,7 +36,7 @@ const WeatherWidget = ({ model }: { model: WeatherWidgetModel }) => {
       className="rounded-[2rem] p-6 backdrop-blur"
       style={{
         border: `1px solid ${MAIN_COLORS.aColorWhite}b3`,
-        background: "linear-gradient(135deg, rgba(252,252,252,0.72), rgba(240,248,251,0.82))",
+        background: `linear-gradient(135deg, ${MAIN_COLORS.aColor3}, ${MAIN_COLORS.aColor3}cc)`,
         boxShadow: `0 12px 35px ${MAIN_COLORS.aColorBlack}12`,
       }}
     >
@@ -45,12 +48,12 @@ const WeatherWidget = ({ model }: { model: WeatherWidgetModel }) => {
           <WeatherGlyph tone={model.statusTone} />
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-2xl font-bold text-gray-900">{model.location}</h2>
+              <h2 className="text-2xl font-bold" style={{ color: MAIN_COLORS.aColorBlack }}>{model.location}</h2>
               <Pill tone={model.statusTone}>{model.headline}</Pill>
             </div>
-            <p className="mt-1 text-sm capitalize text-gray-500">{model.condition}</p>
-            <div className="mt-2 text-4xl font-black text-gray-900">{model.temperature}</div>
-            <p className="mt-2 max-w-xl text-sm text-slate-500">{model.helper}</p>
+            <p className="mt-1 text-sm capitalize" style={{ color: MAIN_COLORS.aColorGray }}>{model.condition}</p>
+            <div className="mt-2 text-4xl font-black" style={{ color: MAIN_COLORS.aColorBlack }}>{model.temperature}</div>
+            <p className="mt-2 max-w-xl text-sm" style={{ color: MAIN_COLORS.aColorGray }}>{model.helper}</p>
           </div>
         </div>
 
@@ -60,15 +63,15 @@ const WeatherWidget = ({ model }: { model: WeatherWidgetModel }) => {
               key={metric.label}
               className="rounded-2xl p-4"
               style={{
-                border: `1px solid ${MAIN_COLORS.aColorWhite}99`,
-                backgroundColor: "rgba(255,255,255,0.52)",
+                border: `1px solid ${MAIN_COLORS.aColor1}33`,
+                backgroundColor: `${MAIN_COLORS.aColorWhite}85`,
               }}
             >
               <div className="flex items-center justify-between gap-2">
-                <p className="text-xs uppercase tracking-[0.14em] text-slate-500">{metric.label}</p>
-                <Wind className="h-4 w-4 text-slate-400" />
+                <p className="text-xs uppercase tracking-[0.14em]" style={{ color: MAIN_COLORS.aColorGray }}>{metric.label}</p>
+                <Wind className="h-4 w-4" style={{ color: MAIN_COLORS.aColorGray }} />
               </div>
-              <p className="mt-3 text-lg font-semibold text-slate-950">{metric.value}</p>
+              <p className="mt-3 text-lg font-semibold" style={{ color: MAIN_COLORS.aColorBlack }}>{metric.value}</p>
             </div>
           ))}
         </div>

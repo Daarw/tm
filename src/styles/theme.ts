@@ -65,6 +65,52 @@ const BADGE_STYLES = {
 } as const;
 
 /* ============================================================================
+   LIVE MAP LEGEND STYLES
+   ============================================================================ */
+
+export const LIVE_MAP_LEGEND_THEME = {
+  panel: {
+    border: `1px solid ${MAIN_COLORS.aColorGray}33`,
+    backgroundColor: `${MAIN_COLORS.aColor3}d1`,
+  },
+  text: {
+    title: MAIN_COLORS.aColorBlack,
+    detail: MAIN_COLORS.aColorGray,
+  },
+  layers: {
+    zones: {
+      accent: "#16a34a",
+    },
+    mobility: {
+      accent: "#3a1575",
+    },
+    weather: {
+      accent: "#0284c7",
+    },
+    warnings: {
+      accent: "#dc2626",
+    },
+  },
+} as const;
+
+/* ============================================================================
+   LAYER TOGGLE STYLES
+   ============================================================================ */
+
+export const LAYER_TOGGLE_THEME = {
+  active: {
+    border: `1px solid ${MAIN_COLORS.aColor2}99`,
+    backgroundColor: `${MAIN_COLORS.aColor2}18`,
+    color: MAIN_COLORS.aColor1,
+  },
+  inactive: {
+    border: `1px solid ${MAIN_COLORS.aColorGray}44`,
+    backgroundColor: MAIN_COLORS.aColor3,
+    color: MAIN_COLORS.aColorGray,
+  },
+} as const;
+
+/* ============================================================================
    UTILITY FUNCTIONS
    ============================================================================ */
 
